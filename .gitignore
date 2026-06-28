@@ -1,0 +1,13 @@
+# Never push these to GitHub!
+.env
+__pycache__/
+*.pyc
+
+# Local Database & Portfolio
+*.db
+*.db-journal
+data/
+portfolio.json
+
+# OS files
+.DS_Store

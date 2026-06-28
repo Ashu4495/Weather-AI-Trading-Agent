@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weather AI Trading Agent</title>
+  <meta name="description" content="Live dashboard for the Weather AI trading agent" />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+
+<!-- Animated BG -->
+<div class="bg-mesh"></div>
+
+<!-- Initial Loader -->
+<div id="loader">
+  <div class="spinner"></div>
+  <div class="loader-text">INITIALIZING AI DASHBOARD</div>
+</div>
+
+<div class="wrap">
+
+  <!-- Header -->
+  <header class="header">
+    <div class="logo"><span class="logo-icon">🌩️</span> Weather AI Agent</div>
+    <div class="controls">
+      <div id="agent-timer" style="font-size: 0.9rem; font-weight: 600; color: var(--muted); margin-right: 1rem; display: none;">
+        Next run in: <span id="timer-text" style="color: var(--blue)">--:--</span>
+      </div>
+      <button class="btn btn-agent" onclick="toggleAgent()" id="btn-toggle">
+        <span class="dot dot-off" id="agent-dot"></span> <span id="agent-text">AGENT OFF</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Stat Cards -->
+  <div class="grid-4" style="margin-bottom:1.5rem">
+    <div class="card stat-card">
+      <div class="stat-label"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg> Portfolio Balance</div>
+      <div class="stat-value" id="s-balance">$–</div>
+      <div class="stat-sub" id="s-change">Loading…</div>
+    </div>
+    <div class="card stat-card">
+      <div class="stat-label"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg> Total Trades</div>
+      <div class="stat-value blue" id="s-trades">–</div>
+      <div class="stat-sub">Positions analyzed & placed</div>
+    </div>
+    <div class="card stat-card">
+      <div class="stat-label"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> Realized P&amp;L</div>
+      <div class="stat-value" id="s-pnl">$–</div>
+      <div class="stat-sub">After market resolution</div>
+    </div>
+    <div class="card stat-card">
+      <div class="stat-label"><svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg> Win Rate</div>
+      <div class="stat-value gold" id="s-win">–%</div>
+      <div class="stat-sub">Accuracy on resolved trades</div>
+    </div>
+  </div>
+
+  <!-- Chart + Trades -->
+  <div class="grid-2">
+    <!-- Chart Card -->
+    <div class="card">
+      <div class="sec-title">
+        <svg width="22" height="22" fill="none" stroke="var(--blue)" stroke-width="2" viewBox="0 0 24 24"><path d="M3 3v18h18M18.7 8l-5.1 5.2-2.8-2.7L7 14.3"/></svg>
+        Portfolio Performance
+      </div>
+      <div class="chart-wrap">
+        <canvas id="chart"></canvas>
+      </div>
+    </div>
+
+    <!-- Trades Table Card -->
+    <div class="card">
+      <div class="sec-title" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+        <div style="display: flex; align-items: center;">
+          <svg width="22" height="22" fill="none" stroke="var(--purple)" stroke-width="2" viewBox="0 0 24 24" style="margin-right: 8px;"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+          Live Trade Ledger
+        </div>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <button class="filter-btn active" onclick="setFilterBtn(this, '')">All</button>
+          <button class="filter-btn" onclick="setFilterBtn(this, 'won')">Won</button>
+          <button class="filter-btn" onclick="setFilterBtn(this, 'lost')">Lost</button>
+          <button class="filter-btn" onclick="setFilterBtn(this, 'pending')">Pending</button>
+          <input type="text" id="trade-filter" placeholder="Search trades..." onkeyup="filterTrades()" style="padding: 0.4rem 0.8rem; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: white; outline: none; font-size: 0.85rem; width: 140px; font-family: inherit; margin-left: 0.5rem;">
+        </div>
+      </div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Time</th>
+              <th>Market</th>
+              <th>AI Action</th>
+              <th>Position</th>
+              <th>Edge</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="tbl-body">
+            <tr><td colspan="6" class="empty-note">Awaiting agent connection...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /wrap -->
+
+<!-- Trade Details Modal -->
+<div class="modal-overlay" id="tradeModal" onclick="closeModal(event)">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div class="modal-header">
+      <div class="modal-title" id="m-title">Trade Details</div>
+      <button class="modal-close" onclick="closeModal(event)">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p><strong>Market:</strong> <span id="m-question"></span></p>
+      <p><strong>Placed:</strong> <span id="m-time"></span></p>
+      
+      <div class="prob-grid">
+        <div>
+          <p style="margin:0; font-size:0.75rem; text-transform:uppercase; letter-spacing:1px">AI Prediction</p>
+          <div id="m-our-prob" style="font-size:1.8rem; font-weight:800; color:var(--blue); line-height:1.2"></div>
+        </div>
+        <div>
+          <p style="margin:0; font-size:0.75rem; text-transform:uppercase; letter-spacing:1px">Crowd Price</p>
+          <div id="m-mkt-prob" style="font-size:1.8rem; font-weight:800; color:var(--purple); line-height:1.2"></div>
+        </div>
+      </div>
+      
+      <p><strong>Edge Found:</strong> <span id="m-edge" style="font-weight:700"></span> (Kelly sizing: <span id="m-kelly"></span>)</p>
+      <p><strong>Action:</strong> <span id="m-action"></span> for <strong id="m-bet"></strong></p>
+      
+      <div class="reason-box">
+        <strong style="color:var(--blue); font-size:0.85rem; text-transform:uppercase; letter-spacing:1px">LLM Reasoning:</strong><br/>
+        <span id="m-reason"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

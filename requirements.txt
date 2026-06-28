@@ -1,0 +1,22 @@
+# Weather AI Trading Agent - Dependencies
+
+# AI / LLM
+openai>=1.0.0          # OpenRouter uses OpenAI-compatible API
+
+# Weather Data
+httpx>=0.27.0          # HTTP requests (async)
+requests>=2.31.0       # Simple HTTP requests
+
+# Apify (weather scraping)
+apify-client>=1.7.0
+
+# Web Dashboard (backend)
+fastapi>=0.110.0
+uvicorn>=0.29.0
+
+# Utilities
+python-dotenv>=1.0.0   # Load .env file
+rich>=13.7.0           # Pretty terminal output
+
+# Agent Integrations
+hermes-agent
