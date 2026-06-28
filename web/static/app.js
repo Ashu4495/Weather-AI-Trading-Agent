@@ -69,7 +69,7 @@ const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' 
   }
 
   // ── Fetch & Render ──────────────────────────────────────
-  let lastTradesJson = "[]";
+  let lastTradesJson = null;
 
   async function fetchAll() {
     try {
