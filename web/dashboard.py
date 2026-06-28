@@ -203,9 +203,11 @@ def read_root():
         return "<h1>Dashboard loading... refresh in a moment.</h1>"
 
 
-def run_dashboard(port: int = 8000):
+def run_dashboard(port: int = None):
+    if port is None:
+        port = int(os.getenv("PORT", 8000))
     console = Console()
-    console.print(f"\n[bold green]Dashboard running at http://localhost:{port}[/bold green]")
+    console.print(f"\n[bold green]Dashboard running at http://0.0.0.0:{port}[/bold green]")
     console.print("[dim]Press Ctrl+C to stop.[/dim]\n")
     uvicorn.run(app, host="0.0.0.0", port=port, log_level="warning")
 
