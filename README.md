@@ -108,8 +108,3 @@ bet_size = (edge / (1 - market_price)) * 0.5 * bankroll
 
 ### 🛡️ Defensive Hedging
 If the agent detects a severe adverse edge swing (e.g. `edge < -20%`) against an already `PENDING` trade, it will automatically panic-hedge by purchasing the opposite side (e.g. `BUY NO`) to lock in capital and minimize total portfolio downside.
-
----
-<div align="center">
-  <em>Built for the CrowdWisdomTrading AI assessment.</em>
-</div>
