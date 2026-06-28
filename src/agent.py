@@ -75,8 +75,8 @@ Current NO Price:  {no_pct}%
 === YOUR TASK ===
 1. Compare the forecast temperature ({temp_max_f}°F) to the market threshold ({threshold_f}°F)
 2. Decide if the crowd's price ({yes_pct}%) is WRONG compared to the real forecast
-3. If there is a clear edge (>10% difference), recommend a trade
-4. If the market seems fairly priced, say SKIP
+3. If there is a clear edge (>1% difference), recommend a trade
+4. If the market seems perfectly identical to your forecast, say SKIP
 
 Respond ONLY in this exact JSON format (no extra text):
 {{
