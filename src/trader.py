@@ -285,6 +285,7 @@ def _init_db():
     """Create database tables if they don't exist yet."""
     import sqlite3
 
+    os.makedirs(os.path.dirname(DB_FILE), exist_ok=True)
     conn = sqlite3.connect(DB_FILE)
     cursor = conn.cursor()
     cursor.execute("""
