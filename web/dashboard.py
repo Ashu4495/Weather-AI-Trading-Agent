@@ -1,14 +1,18 @@
 import asyncio
+import io
 import os
 import sqlite3
 import sys
 import time
+import traceback
+from collections import deque
+from datetime import datetime
 
 import uvicorn
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from rich.console import Console
 
@@ -28,7 +32,20 @@ DB_FILE = "data/trades.db"
 
 app = FastAPI(title="Weather AI Agent Dashboard")
 os.makedirs("web/static", exist_ok=True)
+os.makedirs("data", exist_ok=True)
 app.mount("/static", StaticFiles(directory="web/static"), name="static")
+
+# ---------------------------------------------------------
+# In-Memory Log Buffer (last 200 lines) for /api/logs
+# ---------------------------------------------------------
+LOG_BUFFER: deque = deque(maxlen=200)
+
+def log(msg: str):
+    """Log to both stdout and in-memory buffer."""
+    ts = datetime.now().strftime("%H:%M:%S")
+    line = f"[{ts}] {msg}"
+    print(line, flush=True)
+    LOG_BUFFER.append(line)
 
 # ---------------------------------------------------------
 # Global State for Background Agent
@@ -37,9 +54,9 @@ app.mount("/static", StaticFiles(directory="web/static"), name="static")
 # automatically on every deploy without needing a manual UI button click.
 AUTO_START = os.getenv("AUTO_START_AGENT", "false").lower() == "true"
 AGENT_RUNNING = AUTO_START
-IS_WORKING = False  # To prevent overlapping runs
-# Set NEXT_RUN_TIME to now so the first run fires immediately on startup
-NEXT_RUN_TIME = time.time() if AUTO_START else 0
+IS_WORKING = False   # Prevents overlapping runs
+NEXT_RUN_TIME = 0    # Unix timestamp of next scheduled run (0 = run now)
+CYCLE_COUNT = 0
 
 
 def get_conn():
@@ -50,51 +67,140 @@ def get_conn():
 
 
 # ---------------------------------------------------------
+# Wrapped run_once that captures all output + errors
+# ---------------------------------------------------------
+def run_once_safe():
+    """Run one agent cycle with full error capture and logging."""
+    global CYCLE_COUNT
+    CYCLE_COUNT += 1
+    cycle_num = CYCLE_COUNT
+    log(f"=== CYCLE #{cycle_num} STARTING ===")
+
+    try:
+        # Capture stdout/stderr from run_once
+        from src.agent import get_all_decisions
+        from src.markets import get_markets_with_fallback
+        from src.resolve import resolve_pending_trades
+        from src.trader import (
+            load_portfolio,
+            print_portfolio_summary,
+            run_all_trades,
+        )
+        from src.weather import get_all_cities_weather
+
+        # Step 1: Weather
+        log("Step 1/4: Fetching weather...")
+        weather = get_all_cities_weather()
+        ok_weather = [w for w in weather if w.get("success")]
+        log(f"  Weather: {len(ok_weather)}/{len(weather)} cities OK")
+        for w in weather:
+            if w.get("success"):
+                log(f"  {w['city']}: {w.get('temp_max_f')}°F")
+            else:
+                log(f"  {w['city']}: FAILED - {w.get('error', 'unknown')}")
+
+        if not ok_weather:
+            log("ERROR: All weather fetches failed! No trades can be placed.")
+            return
+
+        # Step 2: Markets
+        log("Step 2/4: Fetching markets...")
+        markets = get_markets_with_fallback()
+        log(f"  Markets: {len(markets)} found")
+
+        # Step 3: AI Decisions
+        log("Step 3/4: Getting AI decisions...")
+        decisions = get_all_decisions(weather, markets)
+        log(f"  Decisions: {len(decisions)} total")
+        for d in decisions:
+            log(f"  {d.get('city')}: {d.get('action')} | edge={d.get('edge')}% | our={d.get('our_probability')}% | mkt={d.get('market_probability')}%")
+
+        if not decisions:
+            log("WARNING: No decisions returned. Check weather/market city name matching.")
+            return
+
+        # Step 4: Place Trades
+        log("Step 4/4: Placing trades...")
+        placed = run_all_trades(decisions)
+        log(f"  Placed: {len(placed)} trades")
+        for t in placed:
+            log(f"  TRADE: {t.get('action')} {t.get('city')} | ${t.get('bet_size_usd'):.2f} | edge={t.get('edge')}%")
+
+        # Resolve pending
+        log("Resolving pending trades...")
+        resolve_pending_trades()
+
+        portfolio = load_portfolio()
+        log(f"=== CYCLE #{cycle_num} DONE | Balance: ${portfolio['balance']:,.2f} ===")
+
+    except Exception as e:
+        tb = traceback.format_exc()
+        log(f"ERROR in cycle #{cycle_num}: {e}")
+        log(f"TRACEBACK:\n{tb}")
+        raise
+
+
+# ---------------------------------------------------------
 # Background Worker Loop
 # ---------------------------------------------------------
 async def agent_worker_loop():
     """Continuously runs the agent logic in the background if enabled."""
     global IS_WORKING, NEXT_RUN_TIME
+
+    # Brief startup delay to let FastAPI fully initialize
+    await asyncio.sleep(3)
+
+    if AUTO_START:
+        log(f"AUTO_START=true. First cycle will fire immediately.")
+        NEXT_RUN_TIME = time.time()  # Fire immediately on first loop iteration
+
     while True:
         if not AGENT_RUNNING:
             NEXT_RUN_TIME = 0
             await asyncio.sleep(1)
             continue
 
-        if NEXT_RUN_TIME == 0 or time.time() >= NEXT_RUN_TIME:
-            if not IS_WORKING:
-                try:
-                    IS_WORKING = True
-                    print("\n[Dashboard Worker] Agent is active. Running cycle...")
-                    await run_in_threadpool(run_once)
-                    print(f"[Dashboard Worker] Cycle complete. Next run in {CHECK_INTERVAL_MINUTES} min.")
-                except Exception as e:
-                    print(f"[Dashboard Worker] Error during run: {e}")
-                finally:
-                    IS_WORKING = False
-                    NEXT_RUN_TIME = time.time() + (CHECK_INTERVAL_MINUTES * 60)
-        
+        now = time.time()
+        should_run = (NEXT_RUN_TIME == 0) or (now >= NEXT_RUN_TIME)
+
+        if should_run and not IS_WORKING:
+            # Set NEXT_RUN_TIME BEFORE starting the run so we don't re-fire
+            NEXT_RUN_TIME = time.time() + (CHECK_INTERVAL_MINUTES * 60)
+            try:
+                IS_WORKING = True
+                log(f"Worker: Starting cycle. Next scheduled at +{CHECK_INTERVAL_MINUTES}min")
+                await run_in_threadpool(run_once_safe)
+            except Exception as e:
+                log(f"Worker: Cycle failed with exception: {e}")
+            finally:
+                IS_WORKING = False
+                log(f"Worker: Cycle finished. Next run in {CHECK_INTERVAL_MINUTES} min.")
+
         await asyncio.sleep(1)
 
 
 @app.on_event("startup")
 async def startup_event():
-    """On startup: ensure DB directory exists, start worker, and send Telegram ping."""
+    """On startup: ensure directories exist, start worker, send Telegram ping."""
     os.makedirs("data", exist_ok=True)
+    log("Dashboard starting up...")
+    log(f"AUTO_START_AGENT={AUTO_START}")
+    log(f"CHECK_INTERVAL_MINUTES={CHECK_INTERVAL_MINUTES}")
+    log(f"DB_FILE={DB_FILE}")
     asyncio.create_task(agent_worker_loop())
     if AUTO_START:
-        print(f"[Dashboard] AUTO_START_AGENT=true — agent will run immediately.")
-        # Send a Telegram startup notification
+        log("Agent auto-start enabled — sending Telegram startup ping...")
         try:
             from src.telegram_alert import send_message
             send_message(
-                "🚀 <b>Weather AI Agent — Deployed & Started</b>\n"
+                "🚀 <b>Weather AI Agent — Deployed &amp; Started</b>\n"
                 "━━━━━━━━━━━━━━━━━━━━\n"
                 "Agent is now running on Railway.\n"
-                f"First cycle starting now. Interval: {CHECK_INTERVAL_MINUTES} min."
+                f"First cycle fires immediately. Interval: {CHECK_INTERVAL_MINUTES} min."
             )
+            log("Telegram startup ping sent.")
         except Exception as e:
-            print(f"[Dashboard] Startup Telegram ping failed: {e}")
+            log(f"Telegram startup ping failed: {e}")
 
 
 # ---------------------------------------------------------
@@ -104,7 +210,7 @@ async def startup_event():
 def get_portfolio():
     """Returns current portfolio stats."""
     import json
-    
+
     # Read true balance from portfolio.json
     portfolio_file = "portfolio.json"
     current_balance = STARTING_BALANCE
@@ -175,6 +281,14 @@ def get_portfolio_history():
     return rows
 
 
+@app.get("/api/logs", response_class=PlainTextResponse)
+def get_logs():
+    """Returns the in-memory agent log for Railway debugging."""
+    if not LOG_BUFFER:
+        return "No logs yet. Agent may not have run."
+    return "\n".join(LOG_BUFFER)
+
+
 # ---------------------------------------------------------
 # API Endpoints: Agent Controls
 # ---------------------------------------------------------
@@ -182,9 +296,10 @@ def get_portfolio_history():
 def agent_status():
     seconds_left = max(0, int(NEXT_RUN_TIME - time.time())) if NEXT_RUN_TIME > 0 else 0
     return {
-        "running": AGENT_RUNNING, 
+        "running": AGENT_RUNNING,
         "working": IS_WORKING,
-        "seconds_until_next": seconds_left
+        "seconds_until_next": seconds_left,
+        "cycle_count": CYCLE_COUNT,
     }
 
 
@@ -193,8 +308,10 @@ def agent_toggle():
     global AGENT_RUNNING, NEXT_RUN_TIME
     AGENT_RUNNING = not AGENT_RUNNING
     status_str = "STARTED" if AGENT_RUNNING else "STOPPED"
-    print(f"\n[Dashboard] Agent {status_str} via UI.")
-    if not AGENT_RUNNING:
+    log(f"Agent {status_str} via UI toggle.")
+    if AGENT_RUNNING:
+        NEXT_RUN_TIME = time.time()   # Fire immediately when turned on
+    else:
         NEXT_RUN_TIME = 0
     return {"running": AGENT_RUNNING}
 
@@ -203,7 +320,7 @@ def agent_toggle():
 def agent_force_run():
     """Forces the agent to run a cycle immediately."""
     global AGENT_RUNNING, NEXT_RUN_TIME
-    print("\n[Dashboard] Manual trigger requested via UI.")
+    log("Manual force-run triggered via UI.")
     AGENT_RUNNING = True
     NEXT_RUN_TIME = time.time()  # Set to now so the loop picks it up instantly
     return {"status": "triggered"}

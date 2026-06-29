@@ -29,6 +29,9 @@
       <div id="agent-timer" style="font-size: 0.9rem; font-weight: 600; color: var(--muted); margin-right: 1rem; display: none;">
         Next run in: <span id="timer-text" style="color: var(--blue)">--:--</span>
       </div>
+      <button class="btn btn-outline" onclick="window.open('/api/logs','_blank')" title="View live agent logs">
+        📋 Logs
+      </button>
       <button class="btn btn-agent" onclick="toggleAgent()" id="btn-toggle">
         <span class="dot dot-off" id="agent-dot"></span> <span id="agent-text">START AGENT</span>
       </button>
