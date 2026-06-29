@@ -33,9 +33,13 @@ app.mount("/static", StaticFiles(directory="web/static"), name="static")
 # ---------------------------------------------------------
 # Global State for Background Agent
 # ---------------------------------------------------------
-AGENT_RUNNING = False
+# AUTO_START_AGENT=true in Railway env vars means the agent starts
+# automatically on every deploy without needing a manual UI button click.
+AUTO_START = os.getenv("AUTO_START_AGENT", "false").lower() == "true"
+AGENT_RUNNING = AUTO_START
 IS_WORKING = False  # To prevent overlapping runs
-NEXT_RUN_TIME = 0   # Unix timestamp of next run
+# Set NEXT_RUN_TIME to now so the first run fires immediately on startup
+NEXT_RUN_TIME = time.time() if AUTO_START else 0
 
 
 def get_conn():
@@ -75,7 +79,22 @@ async def agent_worker_loop():
 
 @app.on_event("startup")
 async def startup_event():
+    """On startup: ensure DB directory exists, start worker, and send Telegram ping."""
+    os.makedirs("data", exist_ok=True)
     asyncio.create_task(agent_worker_loop())
+    if AUTO_START:
+        print(f"[Dashboard] AUTO_START_AGENT=true — agent will run immediately.")
+        # Send a Telegram startup notification
+        try:
+            from src.telegram_alert import send_message
+            send_message(
+                "🚀 <b>Weather AI Agent — Deployed & Started</b>\n"
+                "━━━━━━━━━━━━━━━━━━━━\n"
+                "Agent is now running on Railway.\n"
+                f"First cycle starting now. Interval: {CHECK_INTERVAL_MINUTES} min."
+            )
+        except Exception as e:
+            print(f"[Dashboard] Startup Telegram ping failed: {e}")
 
 
 # ---------------------------------------------------------

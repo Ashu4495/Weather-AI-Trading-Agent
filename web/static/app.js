@@ -366,5 +366,5 @@ const fmt = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' 
   fetchAll();
   fetchAgentStatus();
   startLocalTimer();
-  setInterval(fetchAll, 1000); // Super fast auto-refresh (1s) to match Telegram
-  setInterval(fetchAgentStatus, 1000); // Check agent status frequently (1s)
+  setInterval(fetchAll, 5000);         // Refresh data every 5s
+  setInterval(fetchAgentStatus, 3000); // Check agent status every 3s

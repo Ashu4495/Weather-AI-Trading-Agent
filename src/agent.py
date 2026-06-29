@@ -141,16 +141,27 @@ def get_trade_decision(weather: dict, market: dict) -> dict:
             return _fallback_decision(weather, market, "Empty LLM response")
 
         raw_text = raw_text.strip()
-        console.print(f"  [dim]LLM raw response: {raw_text[:100]}...[/dim]")
+        console.print(f"  [dim]LLM raw response: {raw_text[:120]}...[/dim]")
 
-        # Parse JSON from LLM response
-        # Sometimes LLMs wrap JSON in ```json ... ``` blocks
-        if "```" in raw_text:
-            raw_text = raw_text.split("```")[1]
-            if raw_text.startswith("json"):
-                raw_text = raw_text[4:]
+        # Parse JSON from LLM response robustly.
+        # LLMs often wrap JSON in ```json ... ``` or ``` ... ``` blocks.
+        import re
 
-        decision = json.loads(raw_text)
+        # Strategy 1: extract JSON object using regex (most reliable)
+        json_match = re.search(r'\{[\s\S]*\}', raw_text)
+        if json_match:
+            json_str = json_match.group(0)
+        elif "```" in raw_text:
+            # Strategy 2: strip backtick fences manually
+            parts = raw_text.split("```")
+            # parts[1] is the content inside the first ``` block
+            json_str = parts[1].strip()
+            if json_str.lower().startswith("json"):
+                json_str = json_str[4:].strip()
+        else:
+            json_str = raw_text
+
+        decision = json.loads(json_str)
 
         # Add city and market question for context
         decision["city"] = city
@@ -161,9 +172,9 @@ def get_trade_decision(weather: dict, market: dict) -> dict:
 
     except json.JSONDecodeError as e:
         console.print(
-            f"  [yellow]LLM returned non-JSON. Using rule-based fallback.[/yellow]"
+            f"  [yellow]LLM JSON parse failed: {e}. Using rule-based fallback.[/yellow]"
         )
-        return _fallback_decision(weather, market, "JSON parse error")
+        return _fallback_decision(weather, market, f"JSON parse error: {e}")
 
     except Exception as e:
         console.print(f"  [red]OpenRouter error: {e}[/red]")

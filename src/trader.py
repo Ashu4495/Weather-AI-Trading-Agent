@@ -89,8 +89,16 @@ def place_paper_trade(decision: dict, portfolio: dict) -> dict | None:
         console.print(f"  [dim]Skipping {city} (AI said SKIP)[/dim]")
         return None
 
-    our_prob = decision.get("our_probability", 50)
-    market_prob = decision.get("market_probability", 50)
+    def _to_float(v):
+        if isinstance(v, str):
+            v = v.replace("%", "").strip()
+        try:
+            return float(v)
+        except (ValueError, TypeError):
+            return 50.0
+
+    our_prob = _to_float(decision.get("our_probability", 50))
+    market_prob = _to_float(decision.get("market_probability", 50))
     balance = portfolio["balance"]
 
     kelly = calculate_kelly_bet(our_prob, market_prob, balance)
@@ -134,9 +142,13 @@ def place_paper_trade(decision: dict, portfolio: dict) -> dict | None:
     try:
         from src.telegram_alert import send_trade_alert
 
-        send_trade_alert(trade)
-    except Exception:
-        pass
+        ok = send_trade_alert(trade)
+        if ok:
+            console.print(f"  [dim cyan]📱 Telegram alert sent for {city}[/dim cyan]")
+        else:
+            console.print(f"  [dim yellow]📱 Telegram alert skipped/failed for {city}[/dim yellow]")
+    except Exception as e:
+        console.print(f"  [yellow]Telegram import/send error: {e}[/yellow]")
 
     return trade
 

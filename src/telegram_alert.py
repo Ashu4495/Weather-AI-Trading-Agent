@@ -27,11 +27,19 @@ def send_message(text: str) -> bool:
     payload = {"chat_id": TELEGRAM_CHAT_ID, "text": text, "parse_mode": "HTML"}
 
     try:
-        resp = requests.post(url, json=payload, timeout=6)
+        resp = requests.post(url, json=payload, timeout=10)
         resp.raise_for_status()
         return True
+    except requests.exceptions.ConnectionError:
+        print("[Telegram] Network error — cannot reach Telegram API. Check internet connection.")
+        return False
+    except requests.exceptions.Timeout:
+        print("[Telegram] Request timed out sending Telegram message.")
+        return False
     except Exception as e:
         print(f"[Telegram] Failed to send message: {e}")
+        if hasattr(e, 'response') and e.response is not None:
+            print(f"[Telegram] API response: {e.response.text}")
         return False
 
 
@@ -48,6 +56,7 @@ def send_trade_alert(trade: dict) -> bool:
     reason = trade.get("reason", "")[:120]
 
     emoji = "🟢" if "YES" in trade.get("action", "") else "🔴"
+    edge_sign = "+" if edge >= 0 else ""
 
     msg = (
         f"{emoji} <b>TRADE PLACED — {city}</b>\n"
@@ -56,7 +65,7 @@ def send_trade_alert(trade: dict) -> bool:
         f"<b>Bet Size:</b> ${bet:,.2f}\n"
         f"<b>Our Prob:</b> {our_p}%\n"
         f"<b>Market:</b>   {mkt_p}%\n"
-        f"<b>Edge:</b>     +{edge}%\n"
+        f"<b>Edge:</b>     {edge_sign}{edge}%\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"<i>{reason}</i>"
     )
