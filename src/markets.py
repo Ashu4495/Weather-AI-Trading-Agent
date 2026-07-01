@@ -39,7 +39,7 @@ def search_weather_markets(keyword: str = "weather", limit: int = 50) -> list[di
 
     except Exception as e:
         console.print(f"[red]Gamma API error: {e}[/red]")
-        return []
+        return None
 
 
 def get_market_price(condition_id: str) -> dict:
@@ -154,8 +154,12 @@ def get_all_weather_markets() -> list[dict]:
     all_raw = []
     for term in search_terms:
         raw = search_weather_markets(keyword=term, limit=100)
+        if raw is None:
+            console.print("[red]Aborting further searches due to API error.[/red]")
+            break
         all_raw.extend(raw)
         console.print(f"  [dim]Searched '{term}': {len(raw)} results[/dim]")
+
 
     # Remove duplicates by condition_id
     seen_ids = set()

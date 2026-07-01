@@ -7,7 +7,7 @@ def run_once():
     """Run the complete agent cycle once: weather → AI → trade → resolve."""
     console.print(
         Panel.fit(
-            "[bold cyan]Weather AI Agent — Full Run[/bold cyan]", border_style="cyan"
+            "[bold cyan]Weather AI Trading Agent — Full Run[/bold cyan]", border_style="cyan"
         )
     )
     from src.agent import get_all_decisions, print_decisions_table

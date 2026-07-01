@@ -106,7 +106,7 @@ def send_daily_summary(stats: dict, balance: float) -> bool:
     sign = "+" if pnl >= 0 else ""
 
     msg = (
-        f"📊 <b>Daily Summary — Weather AI Agent</b>\n"
+        f"📊 <b>Daily Summary — Weather AI Trading Agent</b>\n"
         f"━━━━━━━━━━━━━━━━━━━━\n"
         f"<b>Balance:</b>   ${balance:,.2f}\n"
         f"<b>Total P&L:</b> {sign}${pnl:,.2f}\n"
@@ -121,7 +121,7 @@ def send_daily_summary(stats: dict, balance: float) -> bool:
 if __name__ == "__main__":
     print("Testing Telegram alerts...")
     ok = send_message(
-        "🚀 <b>Weather AI Agent</b> — Test message!\n"
+        "🚀 <b>Weather AI Trading Agent</b> — Test message!\n"
         "If you can see this, Telegram alerts are working correctly."
     )
     if ok:

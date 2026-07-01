@@ -27,7 +27,7 @@ load_dotenv()
 STARTING_BALANCE = float(os.getenv("STARTING_BALANCE", "10000"))
 DB_FILE = "data/trades.db"
 
-app = FastAPI(title="Weather AI Agent Dashboard")
+app = FastAPI(title="Weather AI Trading Agent Dashboard")
 os.makedirs("web/static", exist_ok=True)
 os.makedirs("data", exist_ok=True)
 app.mount("/static", StaticFiles(directory="web/static"), name="static")
@@ -189,7 +189,7 @@ async def startup_event():
         try:
             from src.telegram_alert import send_message
             send_message(
-                "🚀 <b>Weather AI Agent — Deployed &amp; Started</b>\n"
+                "🚀 <b>Weather AI Trading Agent — Deployed &amp; Started</b>\n"
                 "━━━━━━━━━━━━━━━━━━━━\n"
                 "Agent is now running on Railway.\n"
                 f"First cycle fires immediately. Interval: {CHECK_INTERVAL_MINUTES} min."

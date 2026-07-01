@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/img4.png" alt="Weather AI Agent Dashboard" width="800">
+  <img src="assets/img4.png" alt="Weather AI Trading Agent Dashboard" width="800">
   <br/>
   <h1>🌩️ Weather AI Trading Agent</h1>
   <p><em>An autonomous AI agent that leverages real-time weather data and Large Language Models to find profitable arbitrage opportunities in prediction markets.</em></p>
