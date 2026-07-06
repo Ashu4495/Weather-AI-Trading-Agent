@@ -6,6 +6,8 @@
   <br/>
   <h1>🌩️ Weather AI Trading Agent</h1>
   <p><em>An autonomous AI agent that leverages real-time weather data and Large Language Models to find profitable arbitrage opportunities in prediction markets.</em></p>
+  <br/>
+  <h3><a href="https://weather-ai-trading-agent.onrender.com/" target="_blank">🌐 View Live Dashboard</a></h3>
 </div>
 
 ---
