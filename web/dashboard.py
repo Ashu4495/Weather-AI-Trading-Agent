@@ -323,9 +323,15 @@ def agent_force_run():
     """Forces the agent to run a cycle immediately."""
     global AGENT_RUNNING, NEXT_RUN_TIME
     log("Manual force-run triggered via UI.")
-    AGENT_RUNNING = True
-    NEXT_RUN_TIME = time.time()  # Set to now so the loop picks it up instantly
-    return {"status": "triggered"}
+    
+    if os.environ.get("VERCEL"):
+        log("Vercel detected: Running synchronously to prevent freezing...")
+        run_once_safe()
+        return {"status": "finished"}
+    else:
+        AGENT_RUNNING = True
+        NEXT_RUN_TIME = time.time()  # Set to now so the loop picks it up instantly
+        return {"status": "triggered"}
 
 
 # ---------------------------------------------------------
