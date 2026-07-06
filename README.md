@@ -2,7 +2,7 @@
   <img src="assets/img4.png" alt="Weather AI Trading Agent Dashboard" width="800">
   <br/>
   <br/>
-  <video src="assets/Project_demonstrating.mp4" controls="controls" width="800"></video>
+  <video src="https://github.com/Ashu4495/Weather-AI-Trading-Agent/raw/main/assets/Project_demonstrating.mp4" controls="controls" width="800"></video>
   <br/>
   <h1>🌩️ Weather AI Trading Agent</h1>
   <p><em>An autonomous AI agent that leverages real-time weather data and Large Language Models to find profitable arbitrage opportunities in prediction markets.</em></p>
