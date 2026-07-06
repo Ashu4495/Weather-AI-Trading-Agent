@@ -25,7 +25,7 @@ from src.config import CHECK_INTERVAL_MINUTES
 os.environ["PYTHONIOENCODING"] = "utf-8"
 load_dotenv()
 STARTING_BALANCE = float(os.getenv("STARTING_BALANCE", "10000"))
-DB_FILE = "/tmp/trades.db" if os.environ.get("VERCEL") else "data/trades.db"
+DB_FILE = "data/trades.db"
 
 app = FastAPI(title="Weather AI Trading Agent Dashboard")
 try:
@@ -183,8 +183,7 @@ async def agent_worker_loop():
 @app.on_event("startup")
 async def startup_event():
     """On startup: ensure directories exist, start worker, send Telegram ping."""
-    if not os.environ.get("VERCEL"):
-        os.makedirs("data", exist_ok=True)
+    os.makedirs("data", exist_ok=True)
     log("Dashboard starting up...")
     log(f"AUTO_START_AGENT={AUTO_START}")
     log(f"CHECK_INTERVAL_MINUTES={CHECK_INTERVAL_MINUTES}")
@@ -324,14 +323,9 @@ def agent_force_run():
     global AGENT_RUNNING, NEXT_RUN_TIME
     log("Manual force-run triggered via UI.")
     
-    if os.environ.get("VERCEL"):
-        log("Vercel detected: Running synchronously to prevent freezing...")
-        run_once_safe()
-        return {"status": "finished"}
-    else:
-        AGENT_RUNNING = True
-        NEXT_RUN_TIME = time.time()  # Set to now so the loop picks it up instantly
-        return {"status": "triggered"}
+    AGENT_RUNNING = True
+    NEXT_RUN_TIME = time.time()  # Set to now so the loop picks it up instantly
+    return {"status": "triggered"}
 
 
 # ---------------------------------------------------------
