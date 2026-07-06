@@ -25,11 +25,16 @@ from src.config import CHECK_INTERVAL_MINUTES
 os.environ["PYTHONIOENCODING"] = "utf-8"
 load_dotenv()
 STARTING_BALANCE = float(os.getenv("STARTING_BALANCE", "10000"))
-DB_FILE = "data/trades.db"
+DB_FILE = "/tmp/trades.db" if os.environ.get("VERCEL") else "data/trades.db"
 
 app = FastAPI(title="Weather AI Trading Agent Dashboard")
-os.makedirs("web/static", exist_ok=True)
-os.makedirs("data", exist_ok=True)
+try:
+    os.makedirs("web/static", exist_ok=True)
+    if not os.environ.get("VERCEL"):
+        os.makedirs("data", exist_ok=True)
+except Exception:
+    pass
+
 app.mount("/static", StaticFiles(directory="web/static"), name="static")
 
 # ---------------------------------------------------------
@@ -178,7 +183,8 @@ async def agent_worker_loop():
 @app.on_event("startup")
 async def startup_event():
     """On startup: ensure directories exist, start worker, send Telegram ping."""
-    os.makedirs("data", exist_ok=True)
+    if not os.environ.get("VERCEL"):
+        os.makedirs("data", exist_ok=True)
     log("Dashboard starting up...")
     log(f"AUTO_START_AGENT={AUTO_START}")
     log(f"CHECK_INTERVAL_MINUTES={CHECK_INTERVAL_MINUTES}")
